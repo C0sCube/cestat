@@ -1,0 +1,43 @@
+{
+    "base_url": "https://www.greentribunal.gov.in",
+    "captcha_url": "https://www.greentribunal.gov.in/sites/all/modules/custom/case_status/captcha.php",
+    "data_url": "https://www.greentribunal.gov.in/judgementOrder/zonalBenchData",
+    "selectors":{
+        "pagination":"ul.pagination a.page-link"
+    },
+
+    "date_format": "%d/%m/%Y",
+    "api_payload": {
+        "zone_type": "",
+        "from_date": "",
+        "to_date": "",
+        "order_by": "",
+        "captcha_input": ""
+    },
+    "benches": {
+        "Principal Bench": 1,
+        "Eastern Zone": 2,
+        "Central Zone": 3,
+        "Western Zone": 4,
+        "Southern Zone": 5
+    },
+    "order_type": {
+        "Order Date": 1,
+        "Uploading Date": 2,
+        "Both": 3
+    },
+    "field_names": [
+        "Sr. No.",
+        "Zonal Bench",
+        "Diary Number",
+        "Case Number/Location Code",
+        "Party Name",
+        "Order Date",
+        "Case Status",
+        "link"
+    ],
+    "headers": {
+        "User-Agent": "Mozilla/5.0"
+    },
+    "notes": []
+}

@@ -1,0 +1,83 @@
+{
+    "base_url": "https://ibbi.gov.in",
+    "headers": {
+        "User-Agent": "Mozilla/5.0"
+    },
+    "selectors": {
+        "table": ".reporttable",
+        "row": "tr",
+        "link": "a"
+    },
+    "regex": {
+        "pdf": "newwindow1\\('(.+?)'\\)"
+    },
+    "sections": {
+        "supreme_court": {
+            "url": "/orders/supreme-court",
+            "type": "pagination",
+            "pages": 10
+        },
+        "ibbi": {
+            "url": "/orders/ibbi",
+            "type": "pagination",
+            "pages": 10
+        },
+        "nclat": {
+            "url": "/orders/nclat",
+            "type": "pagination",
+            "pages": 10
+        },
+        "nclt": {
+            "url": "/orders/nclt",
+            "type": "pagination",
+            "pages": 10
+        },
+        "drat": {
+            "url": "/orders/drat",
+            "type": "pagination"
+        },
+        "drts": {
+            "url": "/orders/drts",
+            "type": "pagination"
+        },
+        "ipa_rvo": {
+            "url": "/orders/ipa-rvo",
+            "type": "pagination"
+        },
+        "other_courts": {
+            "url": "/orders/other-courts",
+            "type": "pagination"
+        },
+        "high_courts": {
+            "type": "court_wise",
+            "url": "/orders/high-courts",
+            "param": "highcourtsname",
+            "courts": [
+                "Allahabad",
+                "Telangana & Andhra Pradesh High Court",
+                "Bombay",
+                "Calcutta",
+                "Chhattisgarh",
+                "Delhi",
+                "Gauhati",
+                "Gujarat",
+                "Himachal Pradesh",
+                "Jammu & Kashmir",
+                "Jharkhand",
+                "Karnataka",
+                "Kerala",
+                "Madhya Pradesh",
+                "Madras",
+                "Manipur",
+                "Meghalaya",
+                "Orissa",
+                "Patna",
+                "Punjab & Haryana",
+                "Rajasthan",
+                "Sikkim",
+                "Tripura",
+                "Uttarakhand"
+            ]
+        }
+    }
+}

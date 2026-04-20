@@ -1,3 +1,19 @@
+# Program Specific
+
+paths.json
+paths.json5
+
+run.bat
+
+.venv/
+venv/
+
+docs/captcha_model.pth
+
+
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
