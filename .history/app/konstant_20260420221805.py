@@ -48,9 +48,6 @@ SCHEDULER_CONFIG = PATHS.get("schedular_data", {})
 
 def load_mail_data():
     pths = utils.load_json(PATHS_JSON)
-    return pths.get("mail_data", {})
+    return 
 
-def load_schl_data():
-    pths = utils.load_json(PATHS_JSON)
-    return pths.get("schedular_data", {})
 

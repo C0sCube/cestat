@@ -5,10 +5,14 @@ from collections import defaultdict
 import pandas as pd #type:ignore
 from typing import List
 from uuid import uuid4
+from app.logger import get_global_logger
+
 class Helper:
     def __init__(self):
-        pass
+        self.logger = get_global_logger()
     
+
+
 
     @staticmethod
     def generate_uid():

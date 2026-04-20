@@ -1,9 +1,14 @@
 import logging, os,sys
 from datetime import datetime
 
+# --- Custom Log Levels ---
+# TRACE_LEVEL_NUM = 15
+# SAVE_LEVEL_NUM = 22
+# NOTICE_LEVEL_NUM = 35
 
-# --- Global Logger Registry ---
-_active_logger = None
+# logging.addLevelName(TRACE_LEVEL_NUM, "TRACE")
+# logging.addLevelName(SAVE_LEVEL_NUM, "SAVE")
+# logging.addLevelName(NOTICE_LEVEL_NUM, "NOTICE")
 
 # --- Default Format ---
 DEFAULT_FORMAT = "%(asctime)s [%(levelname)s]: %(message)s"
@@ -13,7 +18,6 @@ def _get_formatter():
     return logging.Formatter(DEFAULT_FORMAT, datefmt=DATE_FORMAT)
 
 def _add_console_handler(logger, level):
-    formatter = logging.Formatter(DEFAULT_FORMAT, datefmt=DATE_FORMAT)
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(_get_formatter())
     handler.setLevel(level)
@@ -27,6 +31,10 @@ def _add_console_handler(logger, level):
 # WARNING    30      Something unexpected, but not an error
 # ERROR      40      Serious issue, part of the program failed
 # CRITICAL   50      Severe error, may crash the program
+# TRACE SET TO 15
+# SAVE SET TO 22
+# NOTICE SET TO 35
+# Default level is WARNING → shows WARNING, ERROR, CRITICAL
 
 def setup_logger(
     name="app_logger",
@@ -64,10 +72,25 @@ def setup_logger(
     logger._name = name
     logger._current_date = datetime.now().date()
 
+    # --- Attach custom levels
+    # def trace(self, message, *args, **kwargs):
+    #     if self.isEnabledFor(TRACE_LEVEL_NUM):
+    #         self._log(TRACE_LEVEL_NUM, message, args, **kwargs)
+
+    # def save(self, message, *args, **kwargs):
+    #     if self.isEnabledFor(SAVE_LEVEL_NUM):
+    #         self._log(SAVE_LEVEL_NUM, message, args, **kwargs)
+
+    # def notice(self, message, *args, **kwargs):
+    #     if self.isEnabledFor(NOTICE_LEVEL_NUM):
+    #         self._log(NOTICE_LEVEL_NUM, message, args, **kwargs)
+
+    # logging.Logger.trace = trace
+    # logging.Logger.save = save
+    # logging.Logger.notice = notice
     
     if set_global:
-        global _active_logger
-        _active_logger = logger
+        set_global_logger(logger)
 
     return logger
 
@@ -98,6 +121,13 @@ def rotate_daily_log(logger):
         logger._current_date = today
         logger.info(f"Logger rotated to new file: {new_file}")
 
+
+# --- Global Logger Registry ---
+_active_logger = None
+
+def set_global_logger(logger):
+    global _active_logger
+    _active_logger = logger
 
 def get_global_logger():
     return _active_logger or logging.getLogger("default_logger")

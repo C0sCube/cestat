@@ -9,13 +9,10 @@ _active_logger = None
 DEFAULT_FORMAT = "%(asctime)s [%(levelname)s]: %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-def _get_formatter():
-    return logging.Formatter(DEFAULT_FORMAT, datefmt=DATE_FORMAT)
-
 def _add_console_handler(logger, level):
     formatter = logging.Formatter(DEFAULT_FORMAT, datefmt=DATE_FORMAT)
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(_get_formatter())
+    handler.setFormatter(formatter)
     handler.setLevel(level)
     logger.addHandler(handler)
 

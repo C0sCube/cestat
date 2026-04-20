@@ -1,10 +1,6 @@
 import logging, os,sys
 from datetime import datetime
 
-
-# --- Global Logger Registry ---
-_active_logger = None
-
 # --- Default Format ---
 DEFAULT_FORMAT = "%(asctime)s [%(levelname)s]: %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -13,7 +9,6 @@ def _get_formatter():
     return logging.Formatter(DEFAULT_FORMAT, datefmt=DATE_FORMAT)
 
 def _add_console_handler(logger, level):
-    formatter = logging.Formatter(DEFAULT_FORMAT, datefmt=DATE_FORMAT)
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(_get_formatter())
     handler.setLevel(level)
@@ -66,8 +61,7 @@ def setup_logger(
 
     
     if set_global:
-        global _active_logger
-        _active_logger = logger
+        set_global_logger(logger)
 
     return logger
 
@@ -98,6 +92,13 @@ def rotate_daily_log(logger):
         logger._current_date = today
         logger.info(f"Logger rotated to new file: {new_file}")
 
+
+# --- Global Logger Registry ---
+_active_logger = None
+
+def set_global_logger(logger):
+    global _active_logger
+    _active_logger = logger
 
 def get_global_logger():
     return _active_logger or logging.getLogger("default_logger")

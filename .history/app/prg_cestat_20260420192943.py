@@ -4,9 +4,6 @@ from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import pandas as pd
 
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 from app.logger import get_global_logger
 from app.utils import Helper
 
@@ -19,7 +16,7 @@ class CESTAT:
         self.utils = Helper()
         
         self.base_site = self.config["base_url"]
-        # self.selectors = self.config["selectors"]
+        self.selectors = self.config["selectors"]
         self.headers = self.config["headers"]
 
    
@@ -38,7 +35,7 @@ class CESTAT:
         return text.lower()
 
     #get data
-    def get_token(self):
+    def get_token(self, base_url):
         self.logger.info("Getting Token...")
 
         resp = self.session.get(self.base_site, verify=False)
@@ -88,7 +85,7 @@ class CESTAT:
         try:
             for order_name, order in order_type.items():
         
-                csrf_token = self.get_token()
+                csrf_token = self.get_token(self.config["base_url"])  # may raise
 
                 for city, bench in benches.items():
                     time.sleep(5)

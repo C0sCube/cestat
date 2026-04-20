@@ -1,5 +1,5 @@
 # app/ibbi.py
-import os
+
 import re
 import time
 import hashlib
@@ -11,8 +11,7 @@ from urllib.parse import quote_plus
 from app.logger import get_global_logger
 from app.utils import Helper
 
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 class IBBI:
 
     def __init__(self, config):
@@ -152,7 +151,7 @@ class IBBI:
         return results
     
     
-    def _generate_hash(self,row):
+    def _generate_hash(row):
         values = []
 
         for v in row:
@@ -167,7 +166,7 @@ class IBBI:
 
     def filter_data(self, current_data: dict, file_path: str):
 
-        
+        # load existing excel (all sheets)
         old_sheets = pd.read_excel(file_path, sheet_name=None) if os.path.exists(file_path) else {}
 
         new_data = {}
@@ -181,20 +180,23 @@ class IBBI:
                 continue
 
             df = df.copy()
-            df["hash_id"] = df.apply(self._generate_hash, axis=1)
+
+            # --- 1. generate hash ---
+            df["hash_id"] = df.apply(_hash_row, axis=1)
+
+            # --- 2. load previous ---
             prev_df = old_sheets.get(section, pd.DataFrame())
 
             if not prev_df.empty and "hash_id" in prev_df.columns:
                 prev_hashes = set(prev_df["hash_id"])
             else:
                 prev_hashes = set()
-            
-            df["is_new"] = ~df["hash_id"].isin(prev_hashes)
-            
+
             # --- 3. split ---
             new_df = df[~df["hash_id"].isin(prev_hashes)]
             old_df = df[df["hash_id"].isin(prev_hashes)]
 
+            # --- 4. store separately ---
             new_data[section] = new_df
             old_data[section] = old_df
 

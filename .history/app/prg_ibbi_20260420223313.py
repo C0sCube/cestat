@@ -188,9 +188,7 @@ class IBBI:
                 prev_hashes = set(prev_df["hash_id"])
             else:
                 prev_hashes = set()
-            
-            df["is_new"] = ~df["hash_id"].isin(prev_hashes)
-            
+
             # --- 3. split ---
             new_df = df[~df["hash_id"].isin(prev_hashes)]
             old_df = df[df["hash_id"].isin(prev_hashes)]

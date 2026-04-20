@@ -24,18 +24,22 @@ BASE_DIR = PATHS["root_dir"]
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 LOG_DIR = os.path.join(OUTPUT_DIR, "logs")
 DATA_DIR = os.path.join(OUTPUT_DIR, "data")
-
+NGT_DATA_DIR = os.path.join(OUTPUT_DIR, "ngt_data")
 
 COMPANY_FILE = os.path.join(BASE_DIR, "docs", "COMPANIES.csv")
+API_CONFIG_FILE = os.path.join(BASE_DIR, "docs", "config.json")
 
 
+
+def get_company():
+    
 
 # -----------------------
 # ENSURE DIRS (optional)
 # -----------------------
 
 def ensure_dirs():
-    for d in [OUTPUT_DIR, LOG_DIR, DATA_DIR]:
+    for d in [OUTPUT_DIR, LOG_DIR, DATA_DIR, NGT_DATA_DIR]:
         utils.create_dir(d)
 
 # -----------------------
@@ -45,12 +49,4 @@ def ensure_dirs():
 MAIL_CONFIG = PATHS.get("mail_data", {})
 SCHEDULER_CONFIG = PATHS.get("schedular_data", {})
 
-
-def load_mail_data():
-    pths = utils.load_json(PATHS_JSON)
-    return pths.get("mail_data", {})
-
-def load_schl_data():
-    pths = utils.load_json(PATHS_JSON)
-    return pths.get("schedular_data", {})
 
