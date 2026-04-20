@@ -11,6 +11,10 @@ venv/
 docs/captcha_model.pth
 
 
+input/
+output/
+
+
 
 
 
