@@ -8,6 +8,9 @@ run.bat
 .venv/
 venv/
 
+.history/
+
+__pycache__/
 docs/captcha_model.pth
 
 
