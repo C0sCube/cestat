@@ -48,6 +48,8 @@ class IBBIJob:
                     ignore_index=True
                 )
                 final_data[name] = final_df
+                
+                
 
             # --- save ---
             excel_path = os.path.join(output_dir, f"IBBI_ALL_{date.strftime("%Y%m%d")}.xlsx")
@@ -57,6 +59,15 @@ class IBBIJob:
                     self.utils.write_df_safe(writer, df, name[:31])
 
             self.logger.info("All data written to Excel.")
+            
+            
+            # --- update reference ---
+            with pd.ExcelWriter(reference_file, engine="openpyxl", mode="w") as writer:
+                for name, df in final_data.items():
+                    df.to_excel(writer, sheet_name=name[:31], index=False)
+
+            self.logger.info("Reference file updated.")
+            
 
             # --- mail ---
             if self.mailer.send_enabled:
