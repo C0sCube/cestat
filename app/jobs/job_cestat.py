@@ -52,6 +52,7 @@ class CestatJob:
                 self.utils.write_df_safe(writer, final_data, "Final_Data")
 
             self.logger.info("All data written to Excel.")
+            self.logger.info(excel_path)
 
             # --- mail ---
             if self.mailer.send_enabled:

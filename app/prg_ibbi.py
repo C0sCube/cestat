@@ -168,7 +168,7 @@ class IBBI:
     def filter_data(self, current_data: dict, file_path: str):
 
         
-        old_sheets = pd.read_excel(file_path, sheet_name=None) if os.path.exists(file_path) else {}
+        old_sheets = pd.read_excel(file_path, sheet_name=None, engine="openpyxl") if os.path.exists(file_path) else {}
 
         new_data = {}
         old_data = {}

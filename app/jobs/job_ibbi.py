@@ -59,7 +59,7 @@ class IBBIJob:
                     self.utils.write_df_safe(writer, df, name[:31])
 
             self.logger.info("All data written to Excel.")
-            
+            self.logger.info(excel_path)
             
             # --- update reference ---
             with pd.ExcelWriter(reference_file, engine="openpyxl", mode="w") as writer:
@@ -73,8 +73,8 @@ class IBBIJob:
             if self.mailer.send_enabled:
                 self.mailer.send(
                     subject=f"{self.name}: {timestamp}",
-                    body_html=f"<p>{self.name} completed.</p>",
-                    attachments=[excel_path],   # 👈 THIS is the key line
+                    body_html=f"<p>{self.name} completed. <br> NOTE: *THIS IS AN AUTOMATED MAIL. DO NOT REPLY*</p>",
+                    attachments=[excel_path], 
                     dev=False
                 )
 

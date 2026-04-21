@@ -6,16 +6,9 @@ from email.mime.text import MIMEText
 from pathlib import Path
 from datetime import datetime
 
-from app.konstant import load_mail_data
-
-
 class Mailer:
-    def __init__(self):
-        try:
-            cfg = load_mail_data()
-        except FileNotFoundError:
-            cfg = {}
-
+    def __init__(self,cfg:dict):
+        
         self.server = cfg.get("server", "localhost")
         self.port = cfg.get("port", 25)
         self.sender = cfg.get("sender", "noreply@example.com")
