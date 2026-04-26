@@ -152,50 +152,96 @@ class IBBI:
         return results
     
     
-    def _generate_hash(self,row):
+    def _generate_hash(self, row):
         values = []
 
-        for v in row:
+        # explicitly pick stable columns → adjust if structure changes
+        relevant = row[2:6]  # [date, title, type, url]
+
+        for v in relevant:
             if pd.isna(v):
                 v = ""
             v = str(v).strip().lower()
             values.append(v)
 
-        row_str = "|".join(values)
-        return hashlib.md5(row_str.encode()).hexdigest()
+        return hashlib.md5("|".join(values).encode()).hexdigest()
 
 
     def filter_data(self, current_data: dict, file_path: str):
 
-        
         old_sheets = pd.read_excel(file_path, sheet_name=None, engine="openpyxl") if os.path.exists(file_path) else {}
+        old_sheets = {k.lower(): v for k, v in old_sheets.items()}
 
         new_data = {}
         old_data = {}
+        status_report = {}
 
         for section, df in current_data.items():
 
+            section_key = section.lower()
+            prev_df = old_sheets.get(section_key, pd.DataFrame())
+
+            # -------------------------
+            # HANDLE FAILURE / EMPTY
+            # -------------------------
             if df is None or df.empty:
-                new_data[section] = df
-                old_data[section] = df
-                continue
+                if not prev_df.empty:
+                    self.logger.warning(f"{section} → using fallback (previous data)")
+                    df = prev_df.copy()
+                    df["data_status"] = "FALLBACK_OLD"
+                    new_data[section] = pd.DataFrame()
+                    old_data[section] = df
+                    status_report[section] = "FAILED"
+                    continue
+                else:
+                    new_data[section] = df
+                    old_data[section] = df
+                    status_report[section] = "FAILED"
+                    continue
 
+            # -------------------------
+            # HASH CURRENT
+            # -------------------------
             df = df.copy()
-            df["hash_id"] = df.apply(self._generate_hash, axis=1)
-            prev_df = old_sheets.get(section, pd.DataFrame())
+            df["hash_id"] = [self._generate_hash(r) for r in df.values]
 
+            # -------------------------
+            # HASH PREVIOUS
+            # -------------------------
             if not prev_df.empty and "hash_id" in prev_df.columns:
                 prev_hashes = set(prev_df["hash_id"])
             else:
                 prev_hashes = set()
-            
+
+            current_hashes = set(df["hash_id"])
+
+            # -------------------------
+            # FRESHNESS CHECK
+            # -------------------------
+            if not prev_hashes:
+                freshness = "FIRST_RUN"
+            elif current_hashes == prev_hashes:
+                freshness = "STALE"
+            elif len(df) < 0.5 * len(prev_df):
+                freshness = "PARTIAL"
+            else:
+                freshness = "FRESH"
+
+            status_report[section] = freshness
+
+            # -------------------------
+            # MARK NEW
+            # -------------------------
             df["is_new"] = ~df["hash_id"].isin(prev_hashes)
-            
-            # --- 3. split ---
-            new_df = df[~df["hash_id"].isin(prev_hashes)]
-            old_df = df[df["hash_id"].isin(prev_hashes)]
+            df["data_status"] = freshness
+
+            # -------------------------
+            # SPLIT
+            # -------------------------
+            new_df = df[df["is_new"]]
+            old_df = df[~df["is_new"]]
 
             new_data[section] = new_df
             old_data[section] = old_df
 
-        return new_data, old_data
+        return new_data, old_data, status_report

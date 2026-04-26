@@ -19,7 +19,7 @@ class Mailer:
         self.cc = self._list(cfg.get("cc"))
         self.bcc = self._list(cfg.get("bcc"))
 
-        self.send_enabled = cfg.get("send_mail", True)
+        self.send_enabled = cfg.get("send_mail", False)
 
     # -----------------------
     # PUBLIC API
