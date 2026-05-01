@@ -1,5 +1,6 @@
-import re, time
+import re, time, os
 import requests
+from pathlib import Path
 from bs4 import BeautifulSoup
 import pandas as pd
 import urllib3
@@ -9,6 +10,8 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from app.logger import get_global_logger
 from app.utils import Helper
 from app.prg_captcha import CaptchaSolver
+
+CURR_DIR = Path.cwd()
 
 class NGT:
 
@@ -25,7 +28,7 @@ class NGT:
         self.headers = self.config["headers"]
         
         
-        self.model_path = r"C:\Users\kaustubh.keny\Projects\OFFICE PROJECTS\CESTAT\docs\captcha_model.pth" 
+        self.model_path = os.path.join(CURR_DIR,"docs","captcha_model.pth")  #r"C:\Users\kaustubh.keny\Projects\OFFICE PROJECTS\CESTAT\docs\captcha_model.pth" 
         self.solver = CaptchaSolver(self.model_path)
         
     def normalize_name(self, text: str) -> str:
@@ -44,8 +47,8 @@ class NGT:
     def get_payload(self, payload, captcha, zone_type, order_by, date_format):
         from_dt, to_dt = self.utils.generate_dates(date_format, minus_days=1)
 
-        from_dt = "13/04/2026"
-        to_dt = "14/04/2026"
+        # from_dt = "13/04/2026"
+        # to_dt = "14/04/2026"
         
         payload.update({
             "zone_type": str(zone_type),
@@ -107,7 +110,7 @@ class NGT:
 
             row_dict = dict(zip(headers, row_data))
             row_dict["link"] = link
-
+            # print(row_dict.values())
             results.append(row_dict)
 
         return results
@@ -116,6 +119,7 @@ class NGT:
         pages = []
         
         pagination = self.selectors.get("pagination","ul a")
+        
         for a in soup.select(pagination):
             href = a.get("href")
             if not href:
@@ -125,20 +129,34 @@ class NGT:
             if match:
                 pages.append(int(match.group(1)))
 
-        return max(pages) if pages else 1
+        total_pages = max(pages) if pages else 1
+        print(f"Total Pages: {total_pages}")
+        return total_pages
 
     def fetch_pages(self, payload):
         all_results = []
 
-        headers = self.config.get("headers",{"User-Agent": "Mozilla/5.0"})
+        headers = self.config.get("headers", {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "Accept": "text/html,application/xhtml+xml",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Referer": "https://www.greentribunal.gov.in/",
+        })
 
-        payload_page = payload.copy()
-        payload_page["page"] = 1
-        
-        print(payload)
+        params = payload.copy()
+        params["page"] = 1
 
-        print("Fetching Data Right Now.")
-        resp = self.session.post(self.data_site, data=payload_page, verify=False) #headers removed
+        self.logger.info("Fetching Data Right Now.")
+        print("Fetching page 1")
+        print("Params:", params)
+
+        resp = self.session.get(
+            self.data_site,
+            params=params,
+            headers=headers,
+            verify=False,
+            timeout=30
+        )
         resp.raise_for_status()
 
         if "Invalid Captcha" in resp.text:
@@ -148,26 +166,34 @@ class NGT:
 
         page_results = self.extract_rows(soup)
         all_results.extend(page_results)
-
         self.logger.info(f"Page 1 → {len(page_results)} rows")
 
         total_pages = self.get_total_pages(soup)
         self.logger.info(f"Total pages: {total_pages}")
 
         for page in range(2, total_pages + 1):
-            payload_page = payload.copy()
-            payload_page["page"] = page
+            params = payload.copy()
+            params["page"] = page
 
             self.logger.info(f"Fetching page {page}")
+            print(f"Fetching page {page}")
+            print("Params:", params)
 
-            resp = self.session.post(self.data_site, data=payload_page,verify=False) #headers removed
+            time.sleep(3)
+
+            resp = self.session.get(
+                self.data_site,
+                params=params,
+                headers=headers,
+                verify=False,
+                timeout=30
+            )
             resp.raise_for_status()
 
             soup = BeautifulSoup(resp.text, "html.parser")
 
             page_results = self.extract_rows(soup)
             all_results.extend(page_results)
-
             self.logger.info(f"Page {page} → {len(page_results)} rows")
 
         return all_results
