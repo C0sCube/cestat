@@ -1,6 +1,5 @@
-import re, time, os
+import re, time
 import requests
-from pathlib import Path
 from bs4 import BeautifulSoup
 import pandas as pd
 import urllib3
@@ -10,8 +9,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from app.logger import get_global_logger
 from app.utils import Helper
 from app.prg_captcha import CaptchaSolver
-
-CURR_DIR = Path.cwd()
 
 class NGT:
 
@@ -26,10 +23,11 @@ class NGT:
         self.captcha_url = self.config["captcha_url"]
         self.selectors = self.config["selectors"]
         self.headers = self.config["headers"]
+        self.empty_condition = self.config["empty_condition"]
         
         
-        self.model_path = os.path.join(CURR_DIR,"docs","captcha_model.pth")  #r"C:\Users\kaustubh.keny\Projects\OFFICE PROJECTS\CESTAT\docs\captcha_model.pth" 
-        self.solver = CaptchaSolver(self.model_path)
+        # self.model_path = r"C:\Users\kaustubh.keny\Projects\OFFICE PROJECTS\CESTAT\docs\captcha_model.pth" 
+        # self.solver = CaptchaSolver(self.model_path)
         
     def normalize_name(self, text: str) -> str:
         text = "" if text is None else str(text)
@@ -70,16 +68,17 @@ class NGT:
 
         time.sleep(1)
         # self.logger.info("Captcha saved as captcha.png")
-        # return input("Enter captcha: ")
-        png_path = "captcha.png"
-        perd = self.solver.predict(png_path)
-        print(f"Predict: {perd}")
-        # return "888888"
-        return perd
+        return input("Enter captcha: ")
+        # png_path = "captcha.png"
+        # perd = self.solver.predict(png_path)
+        # print(f"Predict: {perd}")
+        # # return "888888"
+        # return perd
     
 
     def extract_rows(self, soup):
         table = soup.find("table")
+
 
         if not table:
             self.logger.warning("No table found")
@@ -87,6 +86,10 @@ class NGT:
 
         rows = table.find_all("tr")
         if len(rows) < 2:
+            return []
+        
+        if self.empty_condition in rows[1].get_text(strip=True).lower():
+            self.logger.warning("Nothing Fetched Today. Empty Data")
             return []
 
         headers = [th.get_text(strip=True) for th in rows[0].find_all(["th", "td"])]
@@ -110,7 +113,7 @@ class NGT:
 
             row_dict = dict(zip(headers, row_data))
             row_dict["link"] = link
-            # print(row_dict.values())
+            
             results.append(row_dict)
 
         return results
@@ -119,7 +122,6 @@ class NGT:
         pages = []
         
         pagination = self.selectors.get("pagination","ul a")
-        
         for a in soup.select(pagination):
             href = a.get("href")
             if not href:
@@ -129,33 +131,18 @@ class NGT:
             if match:
                 pages.append(int(match.group(1)))
 
-        total_pages = max(pages) if pages else 1
-        print(f"Total Pages: {total_pages}")
-        return total_pages
+        return max(pages) if pages else 1
 
     def fetch_pages(self, payload):
         all_results = []
+        headers = self.config.get("headers", {"User-Agent": "Mozilla/5.0"})
 
-        headers = self.config.get("headers", {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            "Accept": "text/html,application/xhtml+xml",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Referer": "https://www.greentribunal.gov.in/",
-        })
-
-        params = payload.copy()
-        params["page"] = 1
-
-        self.logger.info("Fetching Data Right Now.")
-        print("Fetching page 1")
-        print("Params:", params)
-
-        resp = self.session.get(
+        #POST
+        resp = self.session.post(
             self.data_site,
-            params=params,
+            data=payload,
             headers=headers,
-            verify=False,
-            timeout=30
+            verify=False
         )
         resp.raise_for_status()
 
@@ -166,38 +153,55 @@ class NGT:
 
         page_results = self.extract_rows(soup)
         all_results.extend(page_results)
+
         self.logger.info(f"Page 1 → {len(page_results)} rows")
 
         total_pages = self.get_total_pages(soup)
         self.logger.info(f"Total pages: {total_pages}")
 
+        # --- NEXT PAGES (GET) ---
+        base_url = self.data_site
+
+        
+        params = payload.copy()
+        params.pop("captcha_input", None)
+
         for page in range(2, total_pages + 1):
-            params = payload.copy()
+            self.logger.info(f"Fetching page {page}")
+
             params["page"] = page
 
-            self.logger.info(f"Fetching page {page}")
-            print(f"Fetching page {page}")
-            print("Params:", params)
-
-            time.sleep(3)
-
             resp = self.session.get(
-                self.data_site,
+                base_url,
                 params=params,
                 headers=headers,
-                verify=False,
-                timeout=30
+                verify=False
             )
+
             resp.raise_for_status()
 
             soup = BeautifulSoup(resp.text, "html.parser")
 
             page_results = self.extract_rows(soup)
             all_results.extend(page_results)
+
             self.logger.info(f"Page {page} → {len(page_results)} rows")
 
         return all_results
 
+    
+    def fetch_case_html(self, url):
+        resp = self.session.get(url, verify=False)
+        resp.raise_for_status()
+
+        html = resp.text
+
+        # save for debugging
+        with open("case_debug.html", "w", encoding="utf-8") as f:
+            f.write(html)
+
+        return html
+    
     def get_data(self, retries=10):
 
         benches = self.config["benches"]
@@ -224,9 +228,7 @@ class NGT:
                             date_format
                         )
 
-                        self.logger.info(
-                            f"[POST] bench={bench_name}, order={order_name}"
-                        )
+                        self.logger.info(f"[POST] bench={bench_name}, order={order_name}")
 
                         results = self.fetch_pages(payload)
 
@@ -255,3 +257,63 @@ class NGT:
                 # backoff before retry
                 sleep_time = min(5 * attempt, 30)
                 time.sleep(sleep_time)
+
+    
+    
+    def fetch_pdf_link(self, url):
+        try:
+            resp = self.session.get(url, verify=False)
+            resp.raise_for_status()
+
+            if "Invalid Captcha" in resp.text:
+                raise RuntimeError("Session expired")
+
+            soup = BeautifulSoup(resp.text, "html.parser")
+
+            # --- scan rows ---
+            for tr in soup.find_all("tr"):
+
+                # # script method
+                # script_tag = tr.find("script")
+                # if script_tag:
+                #     raw = (script_tag.string or "").strip()
+                #     if raw.endswith(".pdf"):
+                #         return self.base_site + raw
+
+                # myFunctionTest method
+                for a in tr.find_all("a", onclick=True):
+                    onclick = a.get("onclick", "")
+                    if "myFunctionTest" in onclick:
+                        match = re.search(r"'([^']+)'", onclick)
+                        if match:
+                            encoded = match.group(1)
+                            return f"{self.base_site}/gen_pdf_test.php?filepath={encoded}"
+
+            return None
+
+        except Exception as e:
+            self.logger.warning(f"Failed for {url}: {e}")
+            return None
+        
+        
+    def filter_data(self, df):
+        df = df.copy()
+
+        df["_priority"] = df["Case Status"].str.upper().eq("DISPOSED")
+        df = df.sort_values(by="_priority", ascending=False).drop(columns="_priority")
+        df["pdf_link"] = None
+
+
+        for idx, row in df.iterrows():
+
+            if str(row["Case Status"]).upper() != "DISPOSED":
+                break
+
+            url = row["link"]
+            pdf_link = self.fetch_pdf_link(url)
+            time.sleep(2)
+            df.at[idx, "pdf_link"] = pdf_link
+            if not pdf_link:
+                self.logger.info(f"No PDF found for {url}")
+
+        return df

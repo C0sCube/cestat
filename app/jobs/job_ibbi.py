@@ -34,36 +34,37 @@ class IBBIJob:
             reference_file = os.path.join(self.data_dir, "IBBI_REFERENCE.xlsx")
 
             # --- compare ---
-            new_data, old_data, status_report = ibbi.filter_data(
+            new_data, updated_data, prepared_data = ibbi.filter_data(
                 current_data,
                 reference_file
             )
 
-            # --- merge ---
-            final_data = {}
-            for name in current_data:
-                df = pd.concat(
-                    [new_data.get(name, pd.DataFrame()),
-                    old_data.get(name, pd.DataFrame())],
-                    ignore_index=True
+            # --- build report (ONLY changes) ---
+            report_data = {}
+
+            for name in prepared_data:
+                df = pd.concat([
+                    new_data.get(name, pd.DataFrame()), 
+                    updated_data.get(name, pd.DataFrame())
+                    ],ignore_index=True 
                 )
+                if "record_status" in df.columns:
+                    df = df.sort_values(by="record_status")
 
-                # NEW on top
-                if "is_new" in df.columns:
-                    df = df.sort_values(by="is_new", ascending=False)
+                report_data[name] = df
 
-                final_data[name] = df
 
-            # --- save output ---
-            excel_path = os.path.join(output_dir, f"IBBI_ALL_{date.strftime('%Y%m%d')}.xlsx")
+            # --- save report ---
+            excel_path = os.path.join(output_dir, f"IBBI_CHANGES_{date.strftime('%Y%m%d')}.xlsx")
 
             with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
-                for name, df in final_data.items():
+                for name, df in report_data.items():
                     self.utils.write_df_safe(writer, df, name[:31])
 
-            self.logger.info(f"Output saved: {excel_path}")
+            self.logger.info(f"Report saved: {excel_path}")
 
-            # --- archive reference---
+
+            # --- archive reference ---
             if os.path.exists(reference_file):
                 archive_path = os.path.join(
                     self.data_dir,
@@ -72,25 +73,14 @@ class IBBIJob:
                 shutil.copy(reference_file, archive_path)
                 self.logger.info(f"Reference archived: {archive_path}")
 
+
             # --- update reference ---
             with pd.ExcelWriter(reference_file, engine="openpyxl", mode="w") as writer:
-                for name, df in final_data.items():
+                for name, df in prepared_data.items():
                     df.to_excel(writer, sheet_name=name[:31], index=False)
 
             self.logger.info("Reference updated.")
 
-            # --- alert logic ---
-            issues = [k for k, v in status_report.items() if v in ["FAILED", "STALE", "PARTIAL"]]
-
-            if issues:
-                self.logger.warning(f"Issues detected: {issues}")
-
-                if self.mailer.send_enabled:
-                    self.mailer.send(
-                        subject=f"IBBI ALERT: {timestamp}",
-                        body_html=f"<p>Issues detected in: {issues}</p>",
-                        dev=False
-                    )
 
             if self.mailer.send_enabled:
                 self.mailer.send(

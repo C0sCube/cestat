@@ -58,7 +58,7 @@ class CestatJob:
             if self.mailer.send_enabled:
                 self.mailer.send(
                     subject=f"{self.name}: {timestamp}",
-                    body_html=f"<p>{self.name} completed.</p>",
+                    body_html=f"<p>{self.name} completed. <br> NOTE: *THIS IS AN AUTOMATED MAIL. DO NOT REPLY*</p>",
                     attachments=[excel_path], 
                     dev=False
                 )

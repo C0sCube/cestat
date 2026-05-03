@@ -1,53 +1,70 @@
 import time
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
-def scheduler_loop(logger, run_fn, sch_days:list, sch_time:list):
+TZ = ZoneInfo("Asia/Kolkata")
+
+def scheduler_loop(logger, run_fn, sch_days: list, sch_time: list):
     """
-    Wraps the main() scraper function to run at specific times (HHMM format)
-    and only on specified weekdays. times = ["0800", "1240", "1530"] run_days = ["mon", "tue", "wed", "thu", "fri"]
-    
+    Runs run_fn at specified HHMM times on specified weekdays.
+    All times interpreted in Asia/Kolkata timezone.
     """
+    sch_time = sorted(sch_time)  # 🔒 ensure order
+
     while True:
-        now = datetime.now()
+        now = datetime.now(TZ)
         weekday_str = now.strftime("%a").lower()
 
-        # Skip non-run days (like weekends)
+        # ----- Skip non-run days -----
         if weekday_str not in sch_days:
             logger.info(f"Skipping today ({weekday_str.upper()}) — not in run days.")
-            tomorrow = datetime.combine(now.date() + timedelta(days=1), datetime.min.time())
-            wait_seconds = (tomorrow - now).total_seconds()
-            time.sleep(wait_seconds)
-            continue  # restart loop
+            tomorrow = datetime.combine(
+                now.date() + timedelta(days=1),
+                datetime.min.time(),
+                tzinfo=TZ
+            )
+            time.sleep((tomorrow - now).total_seconds())
+            continue
 
-        # --- Determine next scheduled run time ---
-        today_times = [datetime.strptime(t, "%H%M").time() for t in sch_time]
-        future_runs = [datetime.combine(now.date(), t) for t in today_times if datetime.combine(now.date(), t) > now]
+        # ----- Find next run time -----
+        today_times = [
+            datetime.combine(
+                now.date(),
+                datetime.strptime(t, "%H%M").time(),
+                tzinfo=TZ
+            )
+            for t in sch_time
+        ]
+
+        future_runs = [t for t in today_times if t > now]
 
         if future_runs:
             next_run = future_runs[0]
         else:
-            # All times passed — find next valid run day
+            # Move to next valid day
             next_day = now.date() + timedelta(days=1)
             while next_day.strftime("%a").lower() not in sch_days:
                 next_day += timedelta(days=1)
-            next_run = datetime.combine(next_day, today_times[0])
+
+            next_run = datetime.combine(
+                next_day,
+                datetime.strptime(sch_time[0], "%H%M").time(),
+                tzinfo=TZ
+            )
 
         wait_seconds = (next_run - now).total_seconds()
-        logger.info(f"Next Schdeuled Run @ {next_run.strftime('%d-%m-%y %H:%M')}. Waiting {int(wait_seconds)} seconds...")
+        logger.info(
+            f"Next Scheduled Run @ {next_run.strftime('%d-%m-%Y %H:%M')} "
+            f"(in {int(wait_seconds)} sec)"
+        )
+
         time.sleep(wait_seconds)
 
-        # --- Execute scheduled run ---
-        weekday_str = datetime.now().strftime("%a").lower()
-        if weekday_str in sch_days:
-            try:
-                logger.info("=" * 60)
-                logger.info(f"Running Schduled Program @ {datetime.now().strftime('%H:%M')} ({weekday_str.upper()})")
-
-                run_fn() #< -- function runs here
-                
-                logger.info(f"Completed Scheduled Run @ {datetime.now().strftime('%H:%M')}")
-            except Exception as e:
-                logger.critical(f"Run failed: {type(e).__name__}: {e}")
-                
-        else:
-            logger.info(f"Skipped run because today ({weekday_str.upper()}) is not in run days.")
+        # ----- Execute job -----
+        try:
+            logger.info("=" * 60)
+            logger.info(f"Running Scheduled Program @ {datetime.now(TZ).strftime('%H:%M')}")
+            run_fn()
+            logger.info("Completed Scheduled Run")
+        except Exception as e:
+            logger.critical(f"Run failed: {type(e).__name__}: {e}")

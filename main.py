@@ -46,8 +46,8 @@ if __name__ == "__main__":
     
     # --- scheduler config ---
     schl_cfg = load_schl_data()
-    sch_days = schl_cfg.get("run_days", ["mon","tue","wed","thu","fri"])
-    sch_time = schl_cfg.get("run_times", ["0939"])
+    sch_days = schl_cfg.get("run_days", ["mon","tue","wed","thu","fri","sat"])
+    sch_time = schl_cfg.get("run_times", ["2320"])
 
     # --- start scheduler ---
     scheduler_loop(
@@ -71,3 +71,5 @@ if __name__ == "__main__":
         #     "sat",
         #     "sun"
         # ]
+        
+    "Nandlal.Parab@cogencis.com"

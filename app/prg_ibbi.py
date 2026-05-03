@@ -24,6 +24,7 @@ class IBBI:
         self.utils = Helper()
         
         self.sections = self.config["sections"]
+        self.columns = self.config["columns"]
         self.base_site = self.config["base_url"]
         self.selectors = self.config["selectors"]
         self.regex_pdf = re.compile(self.config["regex"]["pdf"])
@@ -151,97 +152,68 @@ class IBBI:
 
         return results
     
-    
-    def _generate_hash(self, row):
-        values = []
-
-        # explicitly pick stable columns → adjust if structure changes
-        relevant = row[2:6]  # [date, title, type, url]
-
-        for v in relevant:
-            if pd.isna(v):
-                v = ""
-            v = str(v).strip().lower()
-            values.append(v)
-
-        return hashlib.md5("|".join(values).encode()).hexdigest()
-
-
     def filter_data(self, current_data: dict, file_path: str):
 
         old_sheets = pd.read_excel(file_path, sheet_name=None, engine="openpyxl") if os.path.exists(file_path) else {}
         old_sheets = {k.lower(): v for k, v in old_sheets.items()}
 
         new_data = {}
-        old_data = {}
-        status_report = {}
+        updated_data = {}
+        prepared_data = {}   # reference
 
         for section, df in current_data.items():
 
             section_key = section.lower()
             prev_df = old_sheets.get(section_key, pd.DataFrame())
 
-            # -------------------------
-            # HANDLE FAILURE / EMPTY
-            # -------------------------
             if df is None or df.empty:
-                if not prev_df.empty:
-                    self.logger.warning(f"{section} → using fallback (previous data)")
-                    df = prev_df.copy()
-                    df["data_status"] = "FALLBACK_OLD"
-                    new_data[section] = pd.DataFrame()
-                    old_data[section] = df
-                    status_report[section] = "FAILED"
-                    continue
-                else:
-                    new_data[section] = df
-                    old_data[section] = df
-                    status_report[section] = "FAILED"
-                    continue
+                new_data[section] = pd.DataFrame()
+                updated_data[section] = pd.DataFrame()
+                prepared_data[section] = pd.DataFrame()
+                continue
 
-            # -------------------------
-            # HASH CURRENT
-            # -------------------------
             df = df.copy()
-            df["hash_id"] = [self._generate_hash(r) for r in df.values]
+            df.columns = self.columns
 
-            # -------------------------
-            # HASH PREVIOUS
-            # -------------------------
-            if not prev_df.empty and "hash_id" in prev_df.columns:
-                prev_hashes = set(prev_df["hash_id"])
+            # normalize
+            df["title"] = df["title"].astype(str).str.strip().str.lower()
+            df["category"] = df["category"].astype(str).str.strip().str.lower()
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            df = df.drop_duplicates(subset=["pdf_link"])
+
+
+            def make_hash(row):
+                date_val = row["date"].strftime("%Y-%m-%d") if pd.notna(row["date"]) else ""
+
+                return hashlib.md5(
+                    "|".join([
+                        date_val,
+                        row["title"],
+                        row["category"]
+                    ]).encode()
+                ).hexdigest()
+
+            df["hash_id"] = df.apply(make_hash, axis=1)
+
+
+            if not prev_df.empty and "pdf_link" in prev_df.columns:
+                prev_map = prev_df.set_index("pdf_link")["hash_id"].to_dict()
             else:
-                prev_hashes = set()
+                prev_map = {}
 
-            current_hashes = set(df["hash_id"])
+            def classify(row):
+                key = row["pdf_link"]
+                if key not in prev_map:
+                    return "NEW"
+                elif prev_map[key] != row["hash_id"]:
+                    return "UPDATED"
+                return "UNCHANGED"
 
-            # -------------------------
-            # FRESHNESS CHECK
-            # -------------------------
-            if not prev_hashes:
-                freshness = "FIRST_RUN"
-            elif current_hashes == prev_hashes:
-                freshness = "STALE"
-            elif len(df) < 0.5 * len(prev_df):
-                freshness = "PARTIAL"
-            else:
-                freshness = "FRESH"
+            df["record_status"] = df.apply(classify, axis=1)
 
-            status_report[section] = freshness
+            new_data[section] = df[df["record_status"] == "NEW"]
+            updated_data[section] = df[df["record_status"] == "UPDATED"]
 
-            # -------------------------
-            # MARK NEW
-            # -------------------------
-            df["is_new"] = ~df["hash_id"].isin(prev_hashes)
-            df["data_status"] = freshness
+            prepared_data[section] = df   #refernce
 
-            # -------------------------
-            # SPLIT
-            # -------------------------
-            new_df = df[df["is_new"]]
-            old_df = df[~df["is_new"]]
-
-            new_data[section] = new_df
-            old_data[section] = old_df
-
-        return new_data, old_data, status_report
+        return new_data, updated_data, prepared_data

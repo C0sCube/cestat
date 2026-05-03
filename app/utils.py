@@ -5,8 +5,12 @@ from collections import defaultdict
 import pandas as pd #type:ignore
 from typing import List
 from uuid import uuid4
+from zoneinfo import ZoneInfo
+
+
 class Helper:
     def __init__(self):
+        self.TZ = ZoneInfo("Asia/Kolkata")
         pass
     
 
@@ -15,7 +19,7 @@ class Helper:
         return uuid4().hex
 
     def generate_dates(self,date_format, minus_days=1):
-        today = datetime.today()
+        today = datetime.now(tz=self.TZ)
         to_str = today.strftime(date_format)
         yesterday = today - timedelta(days=minus_days)
         from_str = yesterday.strftime(date_format)
