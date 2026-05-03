@@ -173,4 +173,5 @@ class Helper:
                 "Info": [note_if_empty or "No data available"]
             })
             placeholder.to_excel(writer, sheet_name=sheet_name, index=False)
-
+    
+    
