@@ -148,24 +148,15 @@ class CESTAT:
         # search_company = f"\\b({'|'.join([str(c) for c in companies])})\\b"
         search_company = rf"(?i)\b((?:{'|'.join(map(re.escape, companies))}))\b"
         df["norm"] = df[filter_on].astype(str).apply(self.normalize_name)
-        
+        df["company"] = df["norm"].str.extract(search_company, expand=False)
         m = df["norm"].str.contains(search_company, case=False, na=False, regex=True)
+    
         # matched_df = df[m]
         # unmatched_df = df[~m]
-        
-        
-  
+        matched_df = df[df["company"].notna()]
+        unmatched_df = df[df["company"].isna()]
 
-        df["matched_company"] = df["norm"].str.extract(
-            search_company, expand=False
-        )
-
-        matched_df = df[df["matched_company"].notna()]
-        unmatched_df = df[df["matched_company"].isna()]
-
-
-
-        
+        # print(matched_df["company"])
         return matched_df
     
     

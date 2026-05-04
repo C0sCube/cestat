@@ -17,6 +17,10 @@ class IBBIJob:
         self.utils = Helper()
         self.data_dir = data_dir
         self.name = "IBBI DATA"
+        
+        print(self.data_dir)
+
+
 
     def run(self):
         date = datetime.now()
@@ -34,50 +38,25 @@ class IBBIJob:
             reference_file = os.path.join(self.data_dir, "IBBI_REFERENCE.xlsx")
 
             # --- compare ---
-            new_data, updated_data, prepared_data = ibbi.filter_data(
-                current_data,
-                reference_file
-            )
+            final_df, compared_df = ibbi.filter_data(current_data,reference_file)
 
-            # --- build report (ONLY changes) ---
-            report_data = {}
+            final_path = os.path.join(output_dir, f"IBBI_CHANGE_{date.strftime('%Y%m%d')}.xlsx")
+            raw_path = os.path.join(output_dir, f"IBBI_RAW_{date.strftime('%Y%m%d')}.xlsx")
 
-            for name in prepared_data:
-                df = pd.concat([
-                    new_data.get(name, pd.DataFrame()), 
-                    updated_data.get(name, pd.DataFrame())
-                    ],ignore_index=True 
-                )
-                if "record_status" in df.columns:
-                    df = df.sort_values(by="record_status")
-
-                report_data[name] = df
-
-
-            # --- save report ---
-            excel_path = os.path.join(output_dir, f"IBBI_CHANGES_{date.strftime('%Y%m%d')}.xlsx")
-
-            with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
-                for name, df in report_data.items():
+            # save final
+            with pd.ExcelWriter(final_path, engine="openpyxl") as writer:
+                for name, df in final_df.items():
                     self.utils.write_df_safe(writer, df, name[:31])
 
-            self.logger.info(f"Report saved: {excel_path}")
+            # save compared
+            with pd.ExcelWriter(raw_path, engine="openpyxl") as writer:
+                for name, df in compared_df.items():
+                    self.utils.write_df_safe(writer, df, name[:31])
 
-
-            # --- archive reference ---
-            if os.path.exists(reference_file):
-                archive_path = os.path.join(
-                    self.data_dir,
-                    f"IBBI_ARCHIVE_{date.strftime('%Y%m%d')}.xlsx"
-                )
-                shutil.copy(reference_file, archive_path)
-                self.logger.info(f"Reference archived: {archive_path}")
-
-
-            # --- update reference ---
+            # save reference
             with pd.ExcelWriter(reference_file, engine="openpyxl", mode="w") as writer:
-                for name, df in prepared_data.items():
-                    df.to_excel(writer, sheet_name=name[:31], index=False)
+                for name, df in compared_df.items():
+                    df.drop(columns=["status"], errors="ignore").to_excel( writer, sheet_name=name[:31], index=False)
 
             self.logger.info("Reference updated.")
 
@@ -86,11 +65,11 @@ class IBBIJob:
                 self.mailer.send(
                     subject=f"{self.name}: {timestamp}",
                     body_html=f"<p>{self.name} completed.<br>*AUTOMATED MAIL*</p>",
-                    attachments=[excel_path],
+                    attachments=[final_path, raw_path],
                     dev=False
                 )
 
-            return excel_path
+            return raw_path
 
         except Exception as e:
             self.logger.critical(e, exc_info=True)
@@ -103,3 +82,90 @@ class IBBIJob:
                 )
 
             raise
+
+
+    # def run(self):
+    #     date = datetime.now()
+    #     timestamp = date.strftime('%d_%H_%M')
+
+    #     try:
+    #         self.logger.info(f"Running {self.name}")
+    #         ibbi = IBBI(self.config)
+
+    #         # --- fetch ---
+    #         current_data = ibbi.get_data()
+    #         self.logger.info("Raw data extracted.")
+
+    #         output_dir = self.utils.create_dir(self.data_dir, date.strftime("%Y%m%d"))
+    #         reference_file = os.path.join(self.data_dir, "IBBI_REFERENCE.xlsx")
+
+    #         # --- compare ---
+    #         new_data, updated_data, prepared_data = ibbi.filter_data(
+    #             current_data,
+    #             reference_file
+    #         )
+
+    #         # --- build report (ONLY changes) ---
+    #         report_data = {}
+
+    #         for name in prepared_data:
+    #             df = pd.concat([
+    #                 new_data.get(name, pd.DataFrame()), 
+    #                 updated_data.get(name, pd.DataFrame())
+    #                 ],ignore_index=True 
+    #             )
+    #             if "record_status" in df.columns:
+    #                 df = df.sort_values(by="record_status")
+
+    #             report_data[name] = df
+
+
+    #         # --- save report ---
+    #         excel_path = os.path.join(output_dir, f"IBBI_CHANGES_{date.strftime('%Y%m%d')}.xlsx")
+
+    #         with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+    #             for name, df in report_data.items():
+    #                 self.utils.write_df_safe(writer, df, name[:31])
+
+    #         self.logger.info(f"Report saved: {excel_path}")
+
+
+    #         # --- archive reference ---
+    #         if os.path.exists(reference_file):
+    #             archive_path = os.path.join(
+    #                 self.data_dir,
+    #                 f"IBBI_ARCHIVE_{date.strftime('%Y%m%d')}.xlsx"
+    #             )
+    #             shutil.copy(reference_file, archive_path)
+    #             self.logger.info(f"Reference archived: {archive_path}")
+
+
+    #         # --- update reference ---
+    #         with pd.ExcelWriter(reference_file, engine="openpyxl", mode="w") as writer:
+    #             for name, df in prepared_data.items():
+    #                 df.to_excel(writer, sheet_name=name[:31], index=False)
+
+    #         self.logger.info("Reference updated.")
+
+
+    #         if self.mailer.send_enabled:
+    #             self.mailer.send(
+    #                 subject=f"{self.name}: {timestamp}",
+    #                 body_html=f"<p>{self.name} completed.<br>*AUTOMATED MAIL*</p>",
+    #                 attachments=[excel_path],
+    #                 dev=False
+    #             )
+
+    #         return excel_path
+
+    #     except Exception as e:
+    #         self.logger.critical(e, exc_info=True)
+
+    #         if self.mailer.send_enabled:
+    #             self.mailer.error(
+    #                 program=f"{self.name}: {timestamp}",
+    #                 err=e,
+    #                 dev=True
+    #             )
+
+    #         raise

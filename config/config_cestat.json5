@@ -20,14 +20,14 @@
 
   selectors: {},
   benches: {
-    // AHMEDABAD: "124438",
-    // ALLAHABAD: "109120",
-    // BANGALORE: "129525",
-    // CHANDIGARH: "104044",
+    AHMEDABAD: "124438",
+    ALLAHABAD: "109120",
+    BANGALORE: "129525",
+    CHANDIGARH: "104044",
     CHENNAI: "133568",
     DELHI: "107079",
-    // HYDERABAD: "136507",
-    // KOLKATA: "119315",
+    HYDERABAD: "136507",
+    KOLKATA: "119315",
     MUMBAI: "127482",
   },
   order_type: {
@@ -53,7 +53,7 @@
     "parties",
     "date",
     "pdf_url",
-    "matched_company"
+    "company",
   ],
   notes: [
     "THE API as of now returns the entire data in one go.",

@@ -11,44 +11,14 @@
   regex: {
     pdf: "newwindow1\\('(.+?)'\\)",
   },
-  columns: ["section", "sr_no", "date", "title", "category", "pdf_link"],
-  other_data: {
-    ibbi: {
-      "41": "FAA",
-      "42": "DC",
-      "43": "Board",
-      "44": "Others",
-    },
-    nclt: {
-      "25": "Principal Bench, New Delhi",
-      "26": "New Delhi Bench - II",
-      "27": "New Delhi Bench - III",
-      "28": "New Delhi Bench - IV",
-      "45": "New Delhi Bench - V",
-      "46": "New Delhi Bench - VI",
-      "29": "Ahmedabad Bench",
-      "30": "Allahabad Bench",
-      "49": "Amravati Bench",
-      "31": "Bengaluru Bench",
-      "32": "Chandigarh Bench",
-      "33": "Chennai Bench",
-      "47": "Cuttack Bench",
-      "34": "Guwahati Bench",
-      "35": "Hyderabad Bench",
-      "48": "Indore Bench",
-      "36": "Jaipur Bench",
-      "39": "Kochi Bench",
-      "37": "Kolkata Bench",
-      "38": "Mumbai Bench",
-      "40": "Others",
-    },
-  },
+
   sections: {
-    // supreme_court: {
-    //   url: "/orders/supreme-court",
-    //   type: "pagination",
-    //   pages: 10,
-    // },
+    supreme_court: {
+      url: "/orders/supreme-court",
+      type: "pagination",
+      pages: 10,
+      columns: ["board", "srno", "date", "case", "remark", "pdf_link"],
+    },
     ibbi: {
       url: "/orders/ibbi",
       type: "type_page",
@@ -60,16 +30,18 @@
         "44": "Others",
       },
       pages: 3,
+      columns: ["board", "type", "srno", "date", "case", "remark", "pdf_link"],
     },
     nclat: {
       url: "/orders/nclat",
       type: "pagination",
       pages: 10,
+      columns: ["board", "srno", "date", "case", "remark", "pdf_link"],
     },
     nclt: {
-      //benches
       url: "/orders/nclt",
       type: "type_page",
+      columns: ["board", "bench", "srno", "date", "case", "remark", "pdf_link"],
       param: "nclt",
       types: {
         "25": "Principal Bench, New Delhi",
@@ -99,23 +71,28 @@
     // drat: {
     //   url: "/orders/drat",
     //   type: "pagination",
+    //   columns: ["board", "srno", "date", "case", "remark", "pdf_link"],
     // },
     // drts: {
     //   url: "/orders/drts",
     //   type: "pagination",
+    //   columns: ["board", "srno", "date", "case", "remark", "pdf_link"],
     // },
     // ipa_rvo: {
     //   url: "/orders/ipa-rvo",
     //   type: "pagination",
+    //   columns: ["board", "srno", "date", "case", "remark", "pdf_link"],
     // },
     // other_courts: {
     //   url: "/orders/other-courts",
     //   type: "pagination",
+    //   columns: ["board", "srno", "date", "case", "remark", "pdf_link"],
     // },
     // high_courts: {
     //   type: "court_wise",
     //   url: "/orders/high-courts",
     //   param: "highcourtsname",
+    //   columns: ["board", "srno", "date", "case", "remark", "pdf_link"],
     //   courts: [
     //     "Allahabad",
     //     "Telangana & Andhra Pradesh High Court",

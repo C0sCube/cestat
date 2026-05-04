@@ -24,7 +24,6 @@ class IBBI:
         self.utils = Helper()
         
         self.sections = self.config["sections"]
-        self.columns = self.config["columns"]
         self.base_site = self.config["base_url"]
         self.selectors = self.config["selectors"]
         self.regex_pdf = re.compile(self.config["regex"]["pdf"])
@@ -99,6 +98,8 @@ class IBBI:
         return all_rows
 
     def fetch_court_pages(self):
+        
+        self.logger.info(f"Fetching Data For HIGH COURTS")
         all_rows = []
         s_config = self.sections["high_courts"]
         param = s_config["param"]
@@ -135,6 +136,8 @@ class IBBI:
         return all_rows
     
     def fetch_type_pages(self, type_pages:str):
+        
+        self.logger.info(f"Fetching Data For IBBI/NCLT")
         all_rows = []
         s_config = self.sections[type_pages]
         param = s_config["param"]
@@ -150,8 +153,8 @@ class IBBI:
                 encoded = quote_plus(court)
                 url = f"{self.base_site}{s_config['url']}?{param}={encoded}&page={page}"
 
-                self.logger.info(f"{court} → Page {page}")
-                print(f"{court} → Page {page}")
+                self.logger.info(f"{types[court]} → Page {page}")
+                print(f"{types[court]} → Page {page}")
                 resp = self.session.get(url, verify=False)
                 if resp.status_code != 200:
                     break
@@ -185,88 +188,169 @@ class IBBI:
 
             if section_config["type"] == "pagination":
                 rows = self.fetch_pages(section_name)
-                df = pd.DataFrame(rows)
-
+                df = pd.DataFrame(rows, columns=section_config["columns"])
                 results[section_name] = df
 
             elif section_config["type"] == "court_wise":
-
                 rows = self.fetch_court_pages()
-                df = pd.DataFrame(rows)
+                df = pd.DataFrame(rows, columns=section_config["columns"])
                 results["high_courts"] = df
-            
-            elif section_config["type"] == "type_page":
 
+            elif section_config["type"] == "type_page":
                 rows = self.fetch_type_pages(section_name)
-                df = pd.DataFrame(rows)
+                df = pd.DataFrame(rows, columns=section_config["columns"])
                 results[section_name] = df
-                
-            
 
         return results
     
-    def filter_data(self, current_data: dict, file_path: str):
+    
+    # def prepare_df(self, df):
+    #     df = df.copy()
+    #     df.columns = df.columns.str.strip().str.lower()
 
-        old_sheets = pd.read_excel(file_path, sheet_name=None, engine="openpyxl") if os.path.exists(file_path) else {}
-        old_sheets = {k.lower(): v for k, v in old_sheets.items()}
+    #     # clean directly on real columns
+    #     df["case"] = df.get("case", "").astype(str).str.strip().str.lower()
+    #     df["remark"] = df.get("remark", "").astype(str).str.strip().str.lower()
+    #     df["date"] = pd.to_datetime(df.get("date"), errors="coerce")
 
-        new_data = {}
-        updated_data = {}
-        prepared_data = {}   # reference
+    #     # keep only stable columns
+    #     # df = df[["date", "case", "remark", "pdf_link"]]
 
-        for section, df in current_data.items():
+    #     # dedupe
+    #     df = df.drop_duplicates(subset=["pdf_link"])
 
-            section_key = section.lower()
-            prev_df = old_sheets.get(section_key, pd.DataFrame())
+    #     # hash using actual fields
+    #     df["hash_id"] = df.apply(
+    #         lambda r: hashlib.md5(
+    #             f"{r['date']}|{r['case']}|{r['remark']}".encode()
+    #         ).hexdigest(),
+    #         axis=1
+    #     )
 
-            if df is None or df.empty:
-                new_data[section] = pd.DataFrame()
-                updated_data[section] = pd.DataFrame()
-                prepared_data[section] = pd.DataFrame()
-                continue
+    #     return df
+    def prepare_df(self, df):
+        df = df.copy()
+        df.columns = df.columns.str.strip().str.lower()
 
-            df = df.copy()
-            df.columns = self.columns
+        # clean directly on real columns
+        df["case"] = df.get("case", "").astype(str).str.strip().str.lower()
+        df["remark"] = df.get("remark", "").astype(str).str.strip().str.lower()
+        df["date"] = pd.to_datetime(df.get("date"), errors="coerce")
 
-            # normalize
-            df["title"] = df["title"].astype(str).str.strip().str.lower()
-            df["category"] = df["category"].astype(str).str.strip().str.lower()
-            df["date"] = pd.to_datetime(df["date"], errors="coerce")
-            df = df.drop_duplicates(subset=["pdf_link"])
+        # keep only stable columns
+        # df = df[["date", "case", "remark", "pdf_link"]]
 
+        # dedupe
+        df = df.drop_duplicates(subset=["pdf_link"])
 
-            def make_hash(row):
-                date_val = row["date"].strftime("%Y-%m-%d") if pd.notna(row["date"]) else ""
+        # hash using actual fields
+        df["hash_id"] = df.apply(
+            lambda r: hashlib.md5(
+                f"{r['date']}{r['case']}|{r['pdf_link']}".encode() #|{r['case']}|{r['remark']}
+            ).hexdigest(),
+            axis=1
+        )
 
-                return hashlib.md5(
-                    "|".join([
-                        date_val,
-                        row["title"],
-                        row["category"]
-                    ]).encode()
-                ).hexdigest()
+        return df
 
-            df["hash_id"] = df.apply(make_hash, axis=1)
+    def filter_data(self, data_dict, ref_path):
 
+        df_old = pd.read_excel(ref_path)
+        prev_map = df_old.set_index("pdf_link")["hash_id"].to_dict()
 
-            if not prev_df.empty and "pdf_link" in prev_df.columns:
-                prev_map = prev_df.set_index("pdf_link")["hash_id"].to_dict()
-            else:
-                prev_map = {}
+        final_results = {}
+        compared_results = {}
+
+        for section_name, df in data_dict.items():
+
+            print(f"Processing: {section_name}")
+
+            df_new = self.prepare_df(df)
 
             def classify(row):
                 key = row["pdf_link"]
+
                 if key not in prev_map:
                     return "NEW"
                 elif prev_map[key] != row["hash_id"]:
                     return "UPDATED"
                 return "UNCHANGED"
 
-            df["record_status"] = df.apply(classify, axis=1)
+            df_new["status"] = df_new.apply(classify, axis=1)
 
-            new_data[section] = df[df["record_status"] == "NEW"]
-            updated_data[section] = df[df["record_status"] == "UPDATED"]
+            # sort by date 
+            df_new = df_new.sort_values(by="date", ascending=False)
 
-            prepared_data[section] = df   #refernce
+            final_df = df_new[df_new["status"].isin(["NEW", "UPDATED"])]
+            compared_df = df_new
 
-        return new_data, updated_data, prepared_data
+            final_results[section_name] = final_df
+            compared_results[section_name] = compared_df
+
+        return final_results, compared_results
+    
+    # def filter_data(self, current_data: dict, file_path: str):
+
+    #     old_sheets = pd.read_excel(file_path, sheet_name=None, engine="openpyxl") if os.path.exists(file_path) else {}
+    #     old_sheets = {k.lower(): v for k, v in old_sheets.items()}
+
+    #     new_data = {}
+    #     updated_data = {}
+    #     prepared_data = {}   # reference
+
+    #     for section, df in current_data.items():
+
+    #         section_key = section.lower()
+    #         prev_df = old_sheets.get(section_key, pd.DataFrame())
+
+    #         if df is None or df.empty:
+    #             new_data[section] = pd.DataFrame()
+    #             updated_data[section] = pd.DataFrame()
+    #             prepared_data[section] = pd.DataFrame()
+    #             continue
+
+    #         df = df.copy()
+    #         df.columns = self.columns
+
+    #         # normalize
+    #         df["title"] = df["title"].astype(str).str.strip().str.lower()
+    #         df["category"] = df["category"].astype(str).str.strip().str.lower()
+    #         df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    #         df = df.drop_duplicates(subset=["pdf_link"])
+
+
+    #         def make_hash(row):
+    #             date_val = row["date"].strftime("%Y-%m-%d") if pd.notna(row["date"]) else ""
+
+    #             return hashlib.md5(
+    #                 "|".join([
+    #                     date_val,
+    #                     row["title"],
+    #                     row["category"]
+    #                 ]).encode()
+    #             ).hexdigest()
+
+    #         df["hash_id"] = df.apply(make_hash, axis=1)
+
+
+    #         if not prev_df.empty and "pdf_link" in prev_df.columns:
+    #             prev_map = prev_df.set_index("pdf_link")["hash_id"].to_dict()
+    #         else:
+    #             prev_map = {}
+
+    #         def classify(row):
+    #             key = row["pdf_link"]
+    #             if key not in prev_map:
+    #                 return "NEW"
+    #             elif prev_map[key] != row["hash_id"]:
+    #                 return "UPDATED"
+    #             return "UNCHANGED"
+
+    #         df["record_status"] = df.apply(classify, axis=1)
+
+    #         new_data[section] = df[df["record_status"] == "NEW"]
+    #         updated_data[section] = df[df["record_status"] == "UPDATED"]
+
+    #         prepared_data[section] = df   #refernce
+
+    #     return new_data, updated_data, prepared_data

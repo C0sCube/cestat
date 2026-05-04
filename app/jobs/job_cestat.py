@@ -43,6 +43,9 @@ class CestatJob:
             )
 
             final_data = filtered_data[self.config["select_cols"]]
+            # print("FILTERED COLUMNS:", filtered_data.columns.tolist())
+            # print("FINAL COLUMNS:", final_data.columns.tolist())
+            # print(final_data.head())
 
             # --- save ---
             excel_path = os.path.join(output_dir,f"CESTAT_ALL_{date.strftime("%Y%m%d")}.xlsx")

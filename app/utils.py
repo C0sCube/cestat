@@ -165,13 +165,20 @@ class Helper:
         return re.sub(r"\s+", " ", text).strip().lower()
     
     
+    # def write_df_safe(self, writer, df, sheet_name, note_if_empty=None):
+    #     if isinstance(df, pd.DataFrame) and not df.empty:
+    #         df.to_excel(writer, sheet_name=sheet_name, index=False)
+    #     else:
+    #         placeholder = pd.DataFrame({
+    #             "Info": [note_if_empty or "No data available"]
+    #         })
+    #         placeholder.to_excel(writer, sheet_name=sheet_name, index=False)
     def write_df_safe(self, writer, df, sheet_name, note_if_empty=None):
-        if isinstance(df, pd.DataFrame) and not df.empty:
-            df.to_excel(writer, sheet_name=sheet_name, index=False)
-        else:
-            placeholder = pd.DataFrame({
-                "Info": [note_if_empty or "No data available"]
-            })
-            placeholder.to_excel(writer, sheet_name=sheet_name, index=False)
+        if isinstance(df, pd.DataFrame):
+            if df.empty:
+                # write empty df WITH columns
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+            else:
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
     
     

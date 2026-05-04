@@ -26,10 +26,10 @@ class NGT:
         self.headers = self.config["headers"]
         self.empty_condition = self.config["empty_condition"]
         
-        
+        self.board = "NGT"
         self.model_path = os.path.join(ROOT_DIR,"docs", "captcha_model.pth")
         #r"C:\Users\kaustubh.keny\Projects\OFFICE PROJECTS\CESTAT\docs\captcha_model.pth" 
-        self.solver = CaptchaSolver(self.model_path)
+        # self.solver = CaptchaSolver(self.model_path)
         
     def normalize_name(self, text: str) -> str:
         text = "" if text is None else str(text)
@@ -69,13 +69,13 @@ class NGT:
             f.write(resp.content)
 
         time.sleep(1)
-        # self.logger.info("Captcha saved as captcha.png")
-        # return input("Enter captcha: ")
-        png_path = "captcha.png"
-        perd = self.solver.predict(png_path)
-        print(f"Predict: {perd}")
-        # return "888888"
-        return perd
+        self.logger.info("Captcha saved as captcha.png")
+        return input("Enter captcha: ")
+        # png_path = "captcha.png"
+        # perd = self.solver.predict(png_path)
+        # print(f"Predict: {perd}")
+        # # return "888888"
+        # return perd
     
 
     def extract_rows(self, soup):
@@ -94,7 +94,7 @@ class NGT:
             self.logger.warning("Nothing Fetched Today. Empty Data")
             return []
 
-        headers = [th.get_text(strip=True) for th in rows[0].find_all(["th", "td"])]
+        # headers = [th.get_text(strip=True) for th in rows[0].find_all(["th", "td"])]
 
         results = []
 
@@ -113,10 +113,11 @@ class NGT:
                 if not link.startswith("http"):
                     link = self.base_site + link
 
-            row_dict = dict(zip(headers, row_data))
-            row_dict["link"] = link
+            # row_dict = dict(zip(headers, row_data))
+            # row_dict["link"] = link
+            row_data.append(link)
             
-            results.append(row_dict)
+            results.append(row_data)
 
         return results
 
@@ -210,6 +211,8 @@ class NGT:
         order_types = self.config["order_type"]
         base_payload = self.config["api_payload"]
         date_format = self.config.get("date_format", "%d/%m/%Y")
+        columns = self.config["columns"]
+        
 
         for attempt in range(1, retries + 1):
             try:
@@ -231,26 +234,28 @@ class NGT:
                         )
 
                         self.logger.info(f"[POST] bench={bench_name}, order={order_name}")
+                        print(f"[POST] bench={bench_name}, order={order_name}")
+                        print(payload)
 
                         results = self.fetch_pages(payload)
 
                         for r in results:
-                            r["Zonal Bench"] = bench_name
-                            r["Order Type"] = order_name
+                            r.insert(0,order_name)
+                            r.insert(0,bench_name)
+                            r.insert(0, self.board)
+                            # r["Zonal Bench"] = bench_name
+                            # r["Order Type"] = order_name
 
                         all_results.extend(results)
                         time.sleep(5)
 
-                df = pd.DataFrame(all_results)
+                df = pd.DataFrame(all_results, columns=columns)
                 self.logger.info(f"NGT Data fetched: {len(df)} rows")
 
                 return df 
             
             except Exception as e:
-                self.logger.error(
-                    f"Attempt {attempt} failed: {e}",
-                    exc_info=True
-                )
+                self.logger.exception(e)
 
                 if attempt == retries:
                     self.logger.error("All retries exhausted. Returning empty DataFrame.")
@@ -301,17 +306,17 @@ class NGT:
     def filter_data(self, df):
         df = df.copy()
 
-        df["_priority"] = df["Case Status"].str.upper().eq("DISPOSED")
+        df["_priority"] = df["status"].str.upper().eq("DISPOSED")
         df = df.sort_values(by="_priority", ascending=False).drop(columns="_priority")
         df["pdf_link"] = None
 
 
         for idx, row in df.iterrows():
 
-            if str(row["Case Status"]).upper() != "DISPOSED":
+            if str(row["status"]).upper() != "DISPOSED":
                 break
 
-            url = row["link"]
+            url = row["pdf_link"]
             pdf_link = self.fetch_pdf_link(url)
             time.sleep(2)
             df.at[idx, "pdf_link"] = pdf_link
