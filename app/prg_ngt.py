@@ -1,4 +1,4 @@
-import re, time
+import re, time, os
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -9,6 +9,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from app.logger import get_global_logger
 from app.utils import Helper
 from app.prg_captcha import CaptchaSolver
+from app.konstant import ROOT_DIR
 
 class NGT:
 
@@ -26,8 +27,9 @@ class NGT:
         self.empty_condition = self.config["empty_condition"]
         
         
-        # self.model_path = r"C:\Users\kaustubh.keny\Projects\OFFICE PROJECTS\CESTAT\docs\captcha_model.pth" 
-        # self.solver = CaptchaSolver(self.model_path)
+        self.model_path = os.path.join(ROOT_DIR,"docs", "captcha_model.pth")
+        #r"C:\Users\kaustubh.keny\Projects\OFFICE PROJECTS\CESTAT\docs\captcha_model.pth" 
+        self.solver = CaptchaSolver(self.model_path)
         
     def normalize_name(self, text: str) -> str:
         text = "" if text is None else str(text)
@@ -45,8 +47,8 @@ class NGT:
     def get_payload(self, payload, captcha, zone_type, order_by, date_format):
         from_dt, to_dt = self.utils.generate_dates(date_format, minus_days=1)
 
-        # from_dt = "13/04/2026"
-        # to_dt = "14/04/2026"
+        from_dt = "13/04/2026"
+        to_dt = "14/04/2026"
         
         payload.update({
             "zone_type": str(zone_type),
@@ -68,12 +70,12 @@ class NGT:
 
         time.sleep(1)
         # self.logger.info("Captcha saved as captcha.png")
-        return input("Enter captcha: ")
-        # png_path = "captcha.png"
-        # perd = self.solver.predict(png_path)
-        # print(f"Predict: {perd}")
-        # # return "888888"
-        # return perd
+        # return input("Enter captcha: ")
+        png_path = "captcha.png"
+        perd = self.solver.predict(png_path)
+        print(f"Predict: {perd}")
+        # return "888888"
+        return perd
     
 
     def extract_rows(self, soup):

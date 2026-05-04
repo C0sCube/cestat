@@ -26,7 +26,7 @@ LOG_DIR = os.path.join(OUTPUT_DIR, "logs")
 DATA_DIR = os.path.join(OUTPUT_DIR, "data")
 CONFIG_DIR = os.path.join(BASE_DIR,"config")
 
-COMPANY_FILE = os.path.join(BASE_DIR, "docs", "COMPANIES.csv")
+COMPANY_FILE = os.path.join(ROOT_DIR, "docs", "COMPANIES.csv")
 
 
 

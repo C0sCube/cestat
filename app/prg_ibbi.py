@@ -125,11 +125,56 @@ class IBBI:
 
                 for r in rows:
                     r.insert(0, court)
-
+                    r.insert(0,"high_courts")
+                
                 all_rows.extend(rows)
 
                 page += 1
                 time.sleep(1)
+
+        return all_rows
+    
+    def fetch_type_pages(self, type_pages:str):
+        all_rows = []
+        s_config = self.sections[type_pages]
+        param = s_config["param"]
+        types = s_config["types"]
+        
+        total_pages = int(s_config["pages"])
+
+        for court in types.keys():
+            print(f"Fething for : {court}")
+            page = 1
+
+            while True:
+                encoded = quote_plus(court)
+                url = f"{self.base_site}{s_config['url']}?{param}={encoded}&page={page}"
+
+                self.logger.info(f"{court} → Page {page}")
+                print(f"{court} → Page {page}")
+                resp = self.session.get(url, verify=False)
+                if resp.status_code != 200:
+                    break
+
+                soup = BeautifulSoup(resp.text, "html.parser")
+                rows = self.extract_rows(soup)
+
+                if not rows:
+                    break
+
+                for r in rows:
+                    category_name = types[court]
+                    r.insert(0, category_name)
+                    r.insert(0, type_pages)
+
+                all_rows.extend(rows)
+
+                
+                #page exit loop condition
+                page += 1
+                time.sleep(1)
+                if page > total_pages:
+                    break
 
         return all_rows
 
@@ -149,6 +194,14 @@ class IBBI:
                 rows = self.fetch_court_pages()
                 df = pd.DataFrame(rows)
                 results["high_courts"] = df
+            
+            elif section_config["type"] == "type_page":
+
+                rows = self.fetch_type_pages(section_name)
+                df = pd.DataFrame(rows)
+                results[section_name] = df
+                
+            
 
         return results
     

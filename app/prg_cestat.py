@@ -22,6 +22,7 @@ class CESTAT:
         # self.selectors = self.config["selectors"]
         self.headers = self.config["headers"]
 
+        self.board = "CESTAT"
    
     def normalize_name(self,text: str) -> str:
         text = "" if text is None else str(text)
@@ -120,7 +121,7 @@ class CESTAT:
                         results.append(
                             dict(zip(
                                 fieldnames,
-                                [bench, city, order_name, serial, case_no, parties, date, pdf_url]
+                                [self.board, bench, city, order_name, serial, case_no, parties, date, pdf_url]
                             ))
                         )
 
@@ -144,12 +145,26 @@ class CESTAT:
         df = df[m]
         
         # company name
-        search_company = f"\\b({'|'.join([str(c) for c in companies])})\\b"
+        # search_company = f"\\b({'|'.join([str(c) for c in companies])})\\b"
+        search_company = rf"(?i)\b((?:{'|'.join(map(re.escape, companies))}))\b"
         df["norm"] = df[filter_on].astype(str).apply(self.normalize_name)
         
         m = df["norm"].str.contains(search_company, case=False, na=False, regex=True)
-        matched_df = df[m]
-        unmatched_df = df[~m]
+        # matched_df = df[m]
+        # unmatched_df = df[~m]
+        
+        
+  
+
+        df["matched_company"] = df["norm"].str.extract(
+            search_company, expand=False
+        )
+
+        matched_df = df[df["matched_company"].notna()]
+        unmatched_df = df[df["matched_company"].isna()]
+
+
+
         
         return matched_df
     
